@@ -1,10 +1,11 @@
 const socket=io();
-const lobby=document.querySelector('#lobby'),game=document.querySelector('#game'),nameEl=document.querySelector('#name'),codeEl=document.querySelector('#code'),err=document.querySelector('#error'),canvas=document.querySelector('#canvas'),ctx=canvas.getContext('2d');
-let state={players:[],started:false,round:0,time:60,crown:{x:600,y:340,carrier:null},powerups:[]},me=null;
+const lobby=document.querySelector('#lobby'),game=document.querySelector('#game'),nameEl=document.querySelector('#name'),codeEl=document.querySelector('#code'),err=document.querySelector('#error'),canvas=document.querySelector('#canvas'),ctx=canvas.getContext('2d'),startBtn=document.querySelector('#start');
+let state={players:[],started:false,round:0,time:60,crown:{x:600,y:340,carrier:null},powerups:[],host:null},me=null;
 const keys={left:false,right:false,up:false,down:false,dash:false};
 function showGame(code){lobby.hidden=true;game.hidden=false;document.querySelector('#room').textContent=code;}
 document.querySelector('#create').onclick=()=>socket.emit('createRoom',{name:nameEl.value.trim()||'Player'});
 document.querySelector('#join').onclick=()=>socket.emit('joinRoom',{code:codeEl.value,name:nameEl.value.trim()||'Player'});
+startBtn.onclick=()=>socket.emit('startGame');
 document.querySelector('#restart').onclick=()=>socket.emit('restart');
 socket.on('roomCreated',showGame);socket.on('roomJoined',showGame);socket.on('errorMessage',m=>err.textContent=m);
 socket.on('state',s=>{state=s;me=s.players.find(p=>p.id===socket.id);renderHud();});
@@ -14,7 +15,7 @@ addEventListener('keydown',e=>{const map={a:'left',A:'left',ArrowLeft:'left',d:'
 addEventListener('keyup',e=>{const map={a:'left',A:'left',ArrowLeft:'left',d:'right',D:'right',ArrowRight:'right',w:'up',W:'up',ArrowUp:'up',s:'down',S:'down',ArrowDown:'down',' ':'dash'};if(map[e.key])keys[map[e.key]]=false;});
 document.querySelectorAll('.touch button').forEach(b=>{const k=b.dataset.k;b.onpointerdown=e=>{e.preventDefault();keys[k]=true};b.onpointerup=b.onpointercancel=b.onpointerleave=()=>keys[k]=false;});
 setInterval(()=>{if(state.started)socket.emit('input',keys)},40);
-function renderHud(){document.querySelector('#timer').textContent=state.time;document.querySelector('#round').textContent=`ROUND ${Math.min(state.round+1,3)}/3`;const scores=[...state.players].sort((a,b)=>b.score-a.score);document.querySelector('#scores').innerHTML=scores.map((p,i)=>`<div class="score ${p.id===state.crown?.carrier?'king':''}"><span>${i+1}. ${escapeHtml(p.name)}</span><b>${p.score.toFixed(0)}</b></div>`).join('');}
+function renderHud(){document.querySelector('#timer').textContent=state.time;document.querySelector('#round').textContent=`ROUND ${Math.min(state.round+1,3)}/3`;startBtn.hidden=state.started||state.host!==socket.id;startBtn.textContent=state.started?'PLAYING':'START';const scores=[...state.players].sort((a,b)=>b.score-a.score);document.querySelector('#scores').innerHTML=scores.map((p,i)=>`<div class="score ${p.id===state.crown?.carrier?'king':''}"><span>${i+1}. ${escapeHtml(p.name)}</span><b>${p.score.toFixed(0)}</b></div>`).join('');}
 function escapeHtml(s){return s.replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
 function fit(){const d=Math.min((innerWidth-260)/1200,(innerHeight-100)/680);canvas.style.width=`${1200*d}px`;canvas.style.height=`${680*d}px`;}addEventListener('resize',fit);fit();
 function roundedRect(x,y,w,h,r){ctx.beginPath();ctx.roundRect(x,y,w,h,r);ctx.fill();}
